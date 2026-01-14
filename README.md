@@ -60,10 +60,13 @@ This project provides comprehensive, programmatic control over the Ableton Live 
     * Import audio files directly into audio tracks or clip slots.
 
 * **Voice & Audio Generation** 
-    * Text-to-Speech Integration: Generate narration, vocal samples, or spoken elements through ElevenLabs MCP [included].
-    * Custom Voice Creation: Clone voices for unique character in your tracks  
-    * Sound Effects: Create custom SFX with AI
-    * Direct Import: Generated audio appears instantly in your Ableton session
+    * **ElevenLabs Integration**: Professional text-to-speech, voice cloning, and custom SFX generation [included]
+    * **LocalAI Integration**: Open-source TTS, STT, and audio generation (MusicGen and more) [new]
+    * **ComfyUI Integration**: Custom workflow-based audio generation with node-based pipelines [new]
+    * **UVR5 Integration**: AI-powered stem separation (vocals, instrumentals, drums, bass) [new]
+    * **RVC Integration**: Voice conversion and transformation with custom voice models [new]
+    * Direct Import: All generated audio appears instantly in your Ableton session
+    * See [AI Audio Integrations Guide](AI_AUDIO_INTEGRATIONS.md) for setup and usage
 
 * **Extensible Framework for Custom Tools**
     * Example: XY Mouse Controller: Demonstrates creating custom Ableton controllers with the MCP framework
