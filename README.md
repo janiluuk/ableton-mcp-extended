@@ -75,6 +75,25 @@ This project provides comprehensive, programmatic control over the Ableton Live 
 
 ---
 
+## 🐳 Docker & Testing
+
+**Quick Setup with Docker Compose:**
+
+```bash
+# Start all AI services locally
+make setup
+
+# Run end-to-end tests
+make test-e2e
+
+# Stop services
+make docker-down
+```
+
+See [DOCKER_E2E_GUIDE.md](DOCKER_E2E_GUIDE.md) for complete Docker setup and testing guide.
+
+---
+
 ##  Quick Start (5 Minutes)
 
 ### Prerequisites

@@ -1,0 +1,126 @@
+version: '3.8'
+
+services:
+  # LocalAI - Open-source AI API server
+  localai:
+    image: quay.io/go-skynet/local-ai:latest
+    container_name: ableton-localai
+    ports:
+      - "8080:8080"
+    environment:
+      - THREADS=4
+      - CONTEXT_SIZE=512
+    volumes:
+      - ./docker/localai/models:/models
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/readyz"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    networks:
+      - ableton-ai
+
+  # ComfyUI - Node-based workflow for audio generation
+  comfyui:
+    image: yanwk/comfyui-boot:latest
+    container_name: ableton-comfyui
+    ports:
+      - "8188:8188"
+    environment:
+      - CLI_ARGS=--listen 0.0.0.0 --port 8188
+    volumes:
+      - ./docker/comfyui/models:/opt/ComfyUI/models
+      - ./docker/comfyui/custom_nodes:/opt/ComfyUI/custom_nodes
+      - ./docker/comfyui/output:/opt/ComfyUI/output
+      - ./examples:/opt/ComfyUI/workflows
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8188/system_stats"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    networks:
+      - ableton-ai
+
+  # Mock UVR5 Server - For testing vocal separation
+  uvr5-mock:
+    build:
+      context: ./docker/uvr5-mock
+      dockerfile: Dockerfile
+    container_name: ableton-uvr5
+    ports:
+      - "5000:5000"
+    environment:
+      - FLASK_ENV=production
+    volumes:
+      - ./docker/uvr5/output:/output
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    networks:
+      - ableton-ai
+
+  # Mock RVC Server - For testing voice conversion
+  rvc-mock:
+    build:
+      context: ./docker/rvc-mock
+      dockerfile: Dockerfile
+    container_name: ableton-rvc
+    ports:
+      - "6000:6000"
+    environment:
+      - FLASK_ENV=production
+    volumes:
+      - ./docker/rvc/models:/models
+      - ./docker/rvc/output:/output
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:6000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    networks:
+      - ableton-ai
+
+  # Test runner service
+  test-runner:
+    build:
+      context: .
+      dockerfile: ./docker/test-runner/Dockerfile
+    container_name: ableton-test-runner
+    depends_on:
+      localai:
+        condition: service_healthy
+      comfyui:
+        condition: service_healthy
+      uvr5-mock:
+        condition: service_healthy
+      rvc-mock:
+        condition: service_healthy
+    environment:
+      - LOCALAI_BASE_URL=http://localai:8080
+      - COMFYUI_BASE_URL=http://comfyui:8188
+      - UVR5_BASE_URL=http://uvr5-mock:5000
+      - RVC_BASE_URL=http://rvc-mock:6000
+      - AI_AUDIO_OUTPUT_DIR=/tmp/ai_audio
+      - PYTHONUNBUFFERED=1
+    volumes:
+      - .:/app
+      - /tmp/ai_audio:/tmp/ai_audio
+    command: pytest tests/ -v --tb=short
+    networks:
+      - ableton-ai
+
+networks:
+  ableton-ai:
+    driver: bridge
+
+volumes:
+  localai-models:
+  comfyui-models:
+  uvr5-output:
+  rvc-models:
