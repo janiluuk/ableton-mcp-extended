@@ -21,7 +21,53 @@ This will check:
 
 ### Common Issues and Solutions
 
-#### 1. Tests Pass Locally But Fail in CI
+#### 1. GitHub Actions Context Injection Errors
+
+**Symptoms:**
+- Shell errors like `command not found`, `Permission denied`
+- Seeing file paths being executed as commands
+- Errors mentioning `$:`, `docker-compose:`, file paths
+- Error code 126 or 127
+
+**Example Error:**
+```
+/home/runner/work/_temp/script.sh: line 174: docker-compose:: command not found
+/home/runner/work/_temp/script.sh: line 174: .github/workflows/ci-tests.yml: Permission denied
+Error: Process completed with exit code 126.
+```
+
+**Cause:**
+- Using `${{ github.event.* }}` directly in shell scripts
+- PR body/title with special characters gets interpreted as shell commands
+- Unsafe variable interpolation in YAML
+
+**Solution:**
+
+❌ **WRONG** - Direct interpolation:
+```yaml
+- name: Check PR
+  run: |
+    PR_BODY="${{ github.event.pull_request.body }}"
+    echo "$PR_BODY"
+```
+
+✅ **CORRECT** - Use environment variables:
+```yaml
+- name: Check PR
+  env:
+    PR_BODY: ${{ github.event.pull_request.body }}
+    PR_TITLE: ${{ github.event.pull_request.title }}
+  run: |
+    echo "Title: $PR_TITLE"
+    echo "Has description: $([ -z "$PR_BODY" ] && echo "No" || echo "Yes")"
+```
+
+**Why this works:**
+- `env:` section handles escaping automatically
+- Shell variables are properly quoted
+- No direct execution of user input
+
+#### 2. Tests Pass Locally But Fail in CI
 
 **Symptoms:**
 - All tests pass with `pytest` locally

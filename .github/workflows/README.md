@@ -208,6 +208,43 @@ act -l
 
 - `GITHUB_TOKEN` - Automatically provided by GitHub Actions
 
+## Security Best Practices
+
+### Safe Context Usage
+
+When using GitHub Actions contexts in shell scripts, always use environment variables:
+
+❌ **UNSAFE** - Direct interpolation:
+```yaml
+- name: Process PR
+  run: |
+    TITLE="${{ github.event.pull_request.title }}"
+    BODY="${{ github.event.pull_request.body }}"
+```
+
+✅ **SAFE** - Environment variables:
+```yaml
+- name: Process PR
+  env:
+    PR_TITLE: ${{ github.event.pull_request.title }}
+    PR_BODY: ${{ github.event.pull_request.body }}
+  run: |
+    echo "Title: $PR_TITLE"
+```
+
+**Why:**
+- Direct interpolation can execute malicious code
+- Special characters in PR titles/bodies cause shell errors
+- Environment variables are properly escaped by GitHub Actions
+
+### Other Security Tips
+
+1. **Pin action versions**: Use `@v4` or commit SHA
+2. **Limit permissions**: Use `permissions:` key
+3. **Validate inputs**: Check user-provided data
+4. **Use secrets properly**: Never echo secrets
+5. **Review dependencies**: Run security scans
+
 ## Status Badges
 
 Add to README.md:

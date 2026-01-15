@@ -60,9 +60,10 @@ jobs:
       - name: Bump version
         if: steps.check.outputs.should_release == 'true'
         id: bump
+        env:
+          CURRENT_VERSION: ${{ steps.get_version.outputs.current_version }}
+          BUMP_TYPE: ${{ github.event.inputs.version_bump || 'patch' }}
         run: |
-          CURRENT_VERSION="${{ steps.get_version.outputs.current_version }}"
-          BUMP_TYPE="${{ github.event.inputs.version_bump || 'patch' }}"
           
           IFS='.' read -ra VERSION_PARTS <<< "$CURRENT_VERSION"
           MAJOR="${VERSION_PARTS[0]}"
