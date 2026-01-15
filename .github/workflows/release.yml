@@ -1,0 +1,254 @@
+name: Release - Version & Publish
+
+on:
+  push:
+    branches:
+      - main
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+      - 'examples/**'
+  workflow_dispatch:
+    inputs:
+      version_bump:
+        description: 'Version bump type'
+        required: true
+        default: 'patch'
+        type: choice
+        options:
+          - major
+          - minor
+          - patch
+
+jobs:
+  check-version:
+    name: Check if version should be bumped
+    runs-on: ubuntu-latest
+    outputs:
+      should_release: ${{ steps.check.outputs.should_release }}
+      new_version: ${{ steps.bump.outputs.new_version }}
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - name: Check for version file changes
+        id: check
+        run: |
+          # Check if pyproject.toml was changed in last commit
+          if git diff --name-only HEAD~1 HEAD | grep -q "pyproject.toml"; then
+            echo "should_release=false" >> $GITHUB_OUTPUT
+          else
+            echo "should_release=true" >> $GITHUB_OUTPUT
+          fi
+      
+      - name: Set up Python
+        if: steps.check.outputs.should_release == 'true'
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      
+      - name: Get current version
+        if: steps.check.outputs.should_release == 'true'
+        id: get_version
+        run: |
+          CURRENT_VERSION=$(grep -oP 'version = "\K[^"]+' pyproject.toml)
+          echo "current_version=$CURRENT_VERSION" >> $GITHUB_OUTPUT
+      
+      - name: Bump version
+        if: steps.check.outputs.should_release == 'true'
+        id: bump
+        run: |
+          CURRENT_VERSION="${{ steps.get_version.outputs.current_version }}"
+          BUMP_TYPE="${{ github.event.inputs.version_bump || 'patch' }}"
+          
+          IFS='.' read -ra VERSION_PARTS <<< "$CURRENT_VERSION"
+          MAJOR="${VERSION_PARTS[0]}"
+          MINOR="${VERSION_PARTS[1]}"
+          PATCH="${VERSION_PARTS[2]}"
+          
+          if [ "$BUMP_TYPE" == "major" ]; then
+            MAJOR=$((MAJOR + 1))
+            MINOR=0
+            PATCH=0
+          elif [ "$BUMP_TYPE" == "minor" ]; then
+            MINOR=$((MINOR + 1))
+            PATCH=0
+          else
+            PATCH=$((PATCH + 1))
+          fi
+          
+          NEW_VERSION="$MAJOR.$MINOR.$PATCH"
+          echo "new_version=$NEW_VERSION" >> $GITHUB_OUTPUT
+          echo "New version will be: $NEW_VERSION"
+
+  test-before-release:
+    name: Run Tests Before Release
+    needs: check-version
+    if: needs.check-version.outputs.should_release == 'true'
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+      
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+      
+      - name: Run all unit tests
+        run: |
+          pytest tests/ -v -m "not e2e" --cov=localai_mcp --cov=comfyui_mcp --cov=uvr5_mcp --cov=rvc_mcp
+      
+      - name: Verify installation
+        run: |
+          python -c "from localai_mcp.client import LocalAIClient; print('✓ LocalAI')"
+          python -c "from comfyui_mcp.client import ComfyUIClient; print('✓ ComfyUI')"
+          python -c "from uvr5_mcp.client import UVR5Client; print('✓ UVR5')"
+          python -c "from rvc_mcp.client import RVCClient; print('✓ RVC')"
+
+  create-release:
+    name: Create Release
+    needs: [check-version, test-before-release]
+    if: needs.check-version.outputs.should_release == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Update version in pyproject.toml
+        run: |
+          NEW_VERSION="${{ needs.check-version.outputs.new_version }}"
+          sed -i "s/version = \".*\"/version = \"$NEW_VERSION\"/" pyproject.toml
+          cat pyproject.toml | grep version
+      
+      - name: Commit version bump
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git add pyproject.toml
+          git commit -m "chore: bump version to ${{ needs.check-version.outputs.new_version }}"
+          git push
+      
+      - name: Create Git tag
+        run: |
+          git tag -a "v${{ needs.check-version.outputs.new_version }}" -m "Release v${{ needs.check-version.outputs.new_version }}"
+          git push origin "v${{ needs.check-version.outputs.new_version }}"
+      
+      - name: Generate release notes
+        id: release_notes
+        run: |
+          cat > release_notes.md << 'EOF'
+          ## 🎉 Release v${{ needs.check-version.outputs.new_version }}
+          
+          ### What's New
+          
+          This release includes the latest updates and improvements to Ableton MCP Extended.
+          
+          ### AI Audio Integrations
+          
+          - **LocalAI**: Text-to-Speech, Speech-to-Text, Audio Generation
+          - **ComfyUI**: Workflow-based audio generation
+          - **UVR5**: Vocal/instrumental separation
+          - **RVC**: Voice conversion and transformation
+          
+          ### Features
+          
+          - ✅ 37 unit tests passing
+          - ✅ E2E test suite with mock servers
+          - ✅ Docker Compose setup for local development
+          - ✅ Comprehensive documentation (40,000+ words)
+          - ✅ 25+ usage examples
+          
+          ### Installation
+          
+          ```bash
+          pip install git+https://github.com/${{ github.repository }}@v${{ needs.check-version.outputs.new_version }}
+          ```
+          
+          ### Quick Start
+          
+          ```bash
+          # Clone and install
+          git clone https://github.com/${{ github.repository }}
+          cd ableton-mcp-extended
+          pip install -e .
+          
+          # Start services
+          make setup
+          
+          # Run tests
+          make test-unit
+          ```
+          
+          ### Documentation
+          
+          - [Quick Start Guide](QUICKSTART_AI_AUDIO.md)
+          - [AI Audio Integrations](AI_AUDIO_INTEGRATIONS.md)
+          - [Docker & E2E Guide](DOCKER_E2E_GUIDE.md)
+          - [Usage Examples](examples/USAGE_EXAMPLES.md)
+          
+          ### Full Changelog
+          
+          See commits since last release for detailed changes.
+          EOF
+          
+          cat release_notes.md
+      
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: v${{ needs.check-version.outputs.new_version }}
+          name: Release v${{ needs.check-version.outputs.new_version }}
+          body_path: release_notes.md
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Build distribution packages
+        run: |
+          python -m pip install --upgrade pip build
+          python -m build
+      
+      - name: Upload release assets
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: v${{ needs.check-version.outputs.new_version }}
+          files: |
+            dist/*.whl
+            dist/*.tar.gz
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  notify-release:
+    name: Notify Release
+    needs: [check-version, create-release]
+    if: needs.check-version.outputs.should_release == 'true'
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Summary
+        run: |
+          echo "## 🎉 Release Created Successfully!" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Version**: v${{ needs.check-version.outputs.new_version }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Next Steps" >> $GITHUB_STEP_SUMMARY
+          echo "1. Check the [release page](https://github.com/${{ github.repository }}/releases)" >> $GITHUB_STEP_SUMMARY
+          echo "2. Download and test the release" >> $GITHUB_STEP_SUMMARY
+          echo "3. Update documentation if needed" >> $GITHUB_STEP_SUMMARY

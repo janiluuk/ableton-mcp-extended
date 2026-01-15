@@ -1,0 +1,68 @@
+# Label configuration for auto-labeling PRs based on changed files
+
+# Documentation changes
+documentation:
+  - '**/*.md'
+  - 'docs/**/*'
+
+# Integration modules
+integration:localai:
+  - 'localai_mcp/**/*'
+
+integration:comfyui:
+  - 'comfyui_mcp/**/*'
+
+integration:uvr5:
+  - 'uvr5_mcp/**/*'
+
+integration:rvc:
+  - 'rvc_mcp/**/*'
+
+integration:elevenlabs:
+  - 'elevenlabs_mcp/**/*'
+
+# Core server
+core:
+  - 'MCP_Server/**/*'
+
+# Testing
+testing:
+  - 'tests/**/*'
+  - 'pytest.ini'
+  - 'conftest.py'
+
+# Docker & DevOps
+docker:
+  - 'docker/**/*'
+  - 'docker-compose.yml'
+  - 'Dockerfile'
+  - '.dockerignore'
+
+# CI/CD
+ci-cd:
+  - '.github/**/*'
+
+# Dependencies
+dependencies:
+  - 'pyproject.toml'
+  - 'requirements*.txt'
+  - 'setup.py'
+  - 'setup.cfg'
+
+# Examples
+examples:
+  - 'examples/**/*'
+
+# Build
+build:
+  - 'Makefile'
+  - '.gitignore'
+  - 'pyproject.toml'
+
+# Configuration
+config:
+  - '.env.example'
+  - '**/*.yml'
+  - '**/*.yaml'
+  - '**/*.json'
+  - '**/*.toml'
