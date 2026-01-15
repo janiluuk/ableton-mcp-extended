@@ -26,10 +26,11 @@ This directory contains automated CI/CD workflows for the Ableton MCP Extended p
 - Validates Python syntax
 
 #### E2E Tests
-- Starts mock UVR5 and RVC servers
+- Starts mock UVR5 and RVC servers using `docker compose`
 - Runs end-to-end integration tests
 - Tests service health and connectivity
 - Cleans up containers after tests
+- **Note**: Uses `docker compose` (space) as it's now standard in GitHub Actions runners
 
 #### Docker Build
 - Builds all Docker images

@@ -7,6 +7,7 @@ This directory contains Docker configurations for running all AI audio services 
 ### Prerequisites
 
 - Docker and Docker Compose installed
+  - **Note**: Modern Docker installations use `docker compose` (with space). Older versions use `docker-compose` (with hyphen). All examples below use `docker compose`, but both work.
 - At least 8GB of RAM available for Docker
 - 10GB of free disk space
 
@@ -14,36 +15,36 @@ This directory contains Docker configurations for running all AI audio services 
 
 ```bash
 # Start all services in detached mode
-docker-compose up -d
+docker compose up -d
 
 # View logs
-docker-compose logs -f
+docker compose logs -f
 
 # Check service health
-docker-compose ps
+docker compose ps
 ```
 
 ### Run Tests
 
 ```bash
 # Run unit tests only
-docker-compose run --rm test-runner pytest tests/ -v -m "not e2e"
+docker compose run --rm test-runner pytest tests/ -v -m "not e2e"
 
 # Run e2e tests (requires services to be running)
-docker-compose run --rm test-runner pytest tests/ -v -m e2e
+docker compose run --rm test-runner pytest tests/ -v -m e2e
 
 # Run all tests
-docker-compose run --rm test-runner pytest tests/ -v
+docker compose run --rm test-runner pytest tests/ -v
 ```
 
 ### Stop Services
 
 ```bash
 # Stop all services
-docker-compose down
+docker compose down
 
 # Stop and remove volumes
-docker-compose down -v
+docker compose down -v
 ```
 
 ## Services

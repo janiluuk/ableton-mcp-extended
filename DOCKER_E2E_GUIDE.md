@@ -26,6 +26,8 @@ The Docker Compose setup provides:
 
 ### Using Make Commands (Recommended)
 
+The Makefile automatically detects whether to use `docker compose` or `docker-compose`:
+
 ```bash
 # See all available commands
 make help
@@ -45,24 +47,26 @@ make docker-down
 
 ### Manual Docker Compose Commands
 
+**Note**: Modern Docker uses `docker compose` (with space). Older versions use `docker-compose` (with hyphen).
+
 ```bash
 # Build images
-docker-compose build
+docker compose build
 
 # Start services
-docker-compose up -d
+docker compose up -d
 
 # Check status
-docker-compose ps
+docker compose ps
 
 # Run tests
-docker-compose run --rm test-runner pytest tests/ -v -m e2e
+docker compose run --rm test-runner pytest tests/ -v -m e2e
 
 # View logs
-docker-compose logs -f localai
+docker compose logs -f localai
 
 # Stop services
-docker-compose down
+docker compose down
 ```
 
 ## Services

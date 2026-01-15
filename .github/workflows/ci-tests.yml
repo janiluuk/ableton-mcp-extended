@@ -90,13 +90,13 @@ jobs:
       
       - name: Start services
         run: |
-          docker-compose up -d uvr5-mock rvc-mock
+          docker compose up -d uvr5-mock rvc-mock
           echo "Waiting for services to be ready..."
           sleep 30
       
       - name: Check service health
         run: |
-          docker-compose ps
+          docker compose ps
           curl -f http://localhost:5000/health || echo "UVR5 mock not ready"
           curl -f http://localhost:6000/health || echo "RVC mock not ready"
       
@@ -125,12 +125,12 @@ jobs:
       - name: Show logs on failure
         if: failure()
         run: |
-          docker-compose logs uvr5-mock
-          docker-compose logs rvc-mock
+          docker compose logs uvr5-mock
+          docker compose logs rvc-mock
       
       - name: Cleanup
         if: always()
-        run: docker-compose down -v
+        run: docker compose down -v
 
   docker-build:
     name: Docker Build Test

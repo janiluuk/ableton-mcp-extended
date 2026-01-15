@@ -1,5 +1,11 @@
 .PHONY: help docker-up docker-down docker-logs test test-unit test-e2e test-all clean docker-build
 
+# Detect if docker-compose or docker compose is available
+DOCKER_COMPOSE := $(shell command -v docker-compose 2> /dev/null)
+ifndef DOCKER_COMPOSE
+    DOCKER_COMPOSE := docker compose
+endif
+
 help: ## Show this help message
 	@echo 'Usage: make [target]'
 	@echo ''
@@ -7,44 +13,44 @@ help: ## Show this help message
 	@awk 'BEGIN {FS = ":.*?## "} /^[a-zA-Z_-]+:.*?## / {printf "  %-20s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
 
 docker-build: ## Build all Docker images
-	docker-compose build
+	$(DOCKER_COMPOSE) build
 
 docker-up: ## Start all services in detached mode
-	docker-compose up -d
+	$(DOCKER_COMPOSE) up -d
 
 docker-down: ## Stop all services
-	docker-compose down
+	$(DOCKER_COMPOSE) down
 
 docker-down-volumes: ## Stop all services and remove volumes
-	docker-compose down -v
+	$(DOCKER_COMPOSE) down -v
 
 docker-logs: ## View logs from all services
-	docker-compose logs -f
+	$(DOCKER_COMPOSE) logs -f
 
 docker-ps: ## Show status of all services
-	docker-compose ps
+	$(DOCKER_COMPOSE) ps
 
 docker-health: ## Check health of all services
 	@echo "Checking service health..."
-	@docker-compose ps | grep "healthy" || echo "Waiting for services to become healthy..."
+	@$(DOCKER_COMPOSE) ps | grep "healthy" || echo "Waiting for services to become healthy..."
 
 test-unit: ## Run unit tests only (no services needed)
 	pytest tests/ -v -m "not e2e"
 
 test-e2e: ## Run e2e tests (requires services to be running)
-	docker-compose run --rm test-runner pytest tests/ -v -m e2e
+	$(DOCKER_COMPOSE) run --rm test-runner pytest tests/ -v -m e2e
 
 test-e2e-local: ## Run e2e tests locally (services must be running)
 	pytest tests/ -v -m e2e
 
 test-all: ## Run all tests via Docker
-	docker-compose run --rm test-runner pytest tests/ -v
+	$(DOCKER_COMPOSE) run --rm test-runner pytest tests/ -v
 
 test-all-local: ## Run all tests locally
 	pytest tests/ -v
 
 clean: ## Clean up Docker resources
-	docker-compose down -v
+	$(DOCKER_COMPOSE) down -v
 	docker system prune -f
 
 setup: docker-build docker-up ## Setup: Build and start all services
@@ -62,19 +68,19 @@ quick-test: ## Quick test: Start services and run tests
 
 # Development helpers
 dev-localai: ## Start only LocalAI service
-	docker-compose up -d localai
+	$(DOCKER_COMPOSE) up -d localai
 
 dev-comfyui: ## Start only ComfyUI service
-	docker-compose up -d comfyui
+	$(DOCKER_COMPOSE) up -d comfyui
 
 dev-uvr5: ## Start only UVR5 mock service
-	docker-compose up -d uvr5-mock
+	$(DOCKER_COMPOSE) up -d uvr5-mock
 
 dev-rvc: ## Start only RVC mock service
-	docker-compose up -d rvc-mock
+	$(DOCKER_COMPOSE) up -d rvc-mock
 
 shell-test: ## Open shell in test runner container
-	docker-compose run --rm test-runner bash
+	$(DOCKER_COMPOSE) run --rm test-runner bash
 
 install-dev: ## Install development dependencies locally
 	pip install -e ".[dev]"
