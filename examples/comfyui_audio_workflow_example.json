@@ -1,0 +1,32 @@
+{
+  "1": {
+    "class_type": "LoadAudio",
+    "inputs": {
+      "audio_path": ""
+    }
+  },
+  "2": {
+    "class_type": "AudioPrompt",
+    "inputs": {
+      "text": "upbeat electronic music",
+      "duration": 10.0,
+      "temperature": 1.0
+    }
+  },
+  "3": {
+    "class_type": "MusicGenNode",
+    "inputs": {
+      "model": "facebook/musicgen-small",
+      "prompt": ["2", 0],
+      "duration": ["2", 1]
+    }
+  },
+  "4": {
+    "class_type": "SaveAudio",
+    "inputs": {
+      "audio": ["3", 0],
+      "filename_prefix": "comfyui_audio",
+      "format": "wav"
+    }
+  }
+}

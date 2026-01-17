@@ -1,0 +1,198 @@
+name: PR - Merge Checks
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    branches: [ main, develop ]
+
+jobs:
+  pr-validation:
+    name: PR Validation
+    runs-on: ubuntu-latest
+    if: github.event.pull_request.draft == false
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Check PR title format
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+        run: |
+          echo "PR Title: $PR_TITLE"
+          
+          # Check if title follows conventional commits format (optional)
+          if [[ ! "$PR_TITLE" =~ ^(feat|fix|docs|style|refactor|test|chore|perf)(\(.*\))?:\ .+ ]]; then
+            echo "⚠️ Warning: PR title doesn't follow conventional commits format"
+            echo "Recommended format: type(scope): description"
+            echo "Examples: feat: add new feature, fix(api): resolve bug, docs: update readme"
+          else
+            echo "✓ PR title follows conventional commits format"
+          fi
+      
+      - name: Check for changes summary
+        env:
+          PR_BODY: ${{ github.event.pull_request.body }}
+        run: |
+          if [ -z "$PR_BODY" ]; then
+            echo "⚠️ Warning: PR has no description"
+          else
+            echo "✓ PR has description"
+          fi
+      
+      - name: Label PR based on files changed
+        uses: actions/labeler@v5
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+
+  quick-tests:
+    name: Quick Tests
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+      
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+      
+      - name: Run fast unit tests
+        run: |
+          pytest tests/ -v -m "not e2e" -x
+      
+      - name: Check Python syntax
+        run: |
+          python -m py_compile localai_mcp/*.py comfyui_mcp/*.py uvr5_mcp/*.py rvc_mcp/*.py
+
+  size-check:
+    name: Check PR Size
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - name: Check PR size
+        run: |
+          FILES_CHANGED=$(git diff --name-only origin/${{ github.base_ref }}...HEAD | wc -l)
+          LINES_ADDED=$(git diff --numstat origin/${{ github.base_ref }}...HEAD | awk '{sum+=$1} END {print sum}')
+          LINES_DELETED=$(git diff --numstat origin/${{ github.base_ref }}...HEAD | awk '{sum+=$2} END {print sum}')
+          
+          echo "Files changed: $FILES_CHANGED"
+          echo "Lines added: $LINES_ADDED"
+          echo "Lines deleted: $LINES_DELETED"
+          
+          if [ $FILES_CHANGED -gt 50 ]; then
+            echo "⚠️ Warning: Large PR with $FILES_CHANGED files changed"
+            echo "Consider splitting into smaller PRs for easier review"
+          fi
+          
+          if [ $LINES_ADDED -gt 1000 ]; then
+            echo "⚠️ Warning: Large PR with $LINES_ADDED lines added"
+          fi
+
+  dependency-check:
+    name: Check Dependencies
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      
+      - name: Check for dependency changes
+        run: |
+          if git diff --name-only origin/${{ github.base_ref }}...HEAD | grep -q "pyproject.toml"; then
+            echo "⚠️ Dependencies changed in this PR"
+            echo "Changed dependencies:"
+            git diff origin/${{ github.base_ref }}...HEAD pyproject.toml
+          else
+            echo "✓ No dependency changes"
+          fi
+      
+      - name: Install and check for conflicts
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e . 2>&1 | tee install.log
+          
+          if grep -q "ERROR" install.log; then
+            echo "❌ Installation failed"
+            exit 1
+          else
+            echo "✓ Installation successful"
+          fi
+
+  documentation-check:
+    name: Check Documentation
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - name: Check for documentation updates
+        run: |
+          # Check if code changes include documentation
+          CODE_CHANGED=$(git diff --name-only origin/${{ github.base_ref }}...HEAD | grep -E "\.(py)$" | wc -l)
+          DOCS_CHANGED=$(git diff --name-only origin/${{ github.base_ref }}...HEAD | grep -E "\.(md)$" | wc -l)
+          
+          echo "Code files changed: $CODE_CHANGED"
+          echo "Documentation files changed: $DOCS_CHANGED"
+          
+          if [ $CODE_CHANGED -gt 5 ] && [ $DOCS_CHANGED -eq 0 ]; then
+            echo "⚠️ Warning: Code changes without documentation updates"
+            echo "Consider updating relevant documentation"
+          fi
+      
+      - name: Check for broken links
+        run: |
+          # Check markdown files for broken internal links
+          for file in $(find . -name "*.md" -not -path "./node_modules/*"); do
+            echo "Checking $file"
+            # Simple check for markdown links
+            grep -oP '\[.*?\]\(\K[^)]+' "$file" | while read link; do
+              if [[ "$link" =~ ^[^http] ]] && [[ "$link" != "#"* ]]; then
+                if [ ! -f "$link" ] && [ ! -d "$link" ]; then
+                  echo "⚠️ Potential broken link in $file: $link"
+                fi
+              fi
+            done
+          done || true
+
+  merge-ready:
+    name: Ready to Merge
+    needs: [pr-validation, quick-tests, size-check, dependency-check, documentation-check]
+    runs-on: ubuntu-latest
+    if: success()
+    
+    steps:
+      - name: All checks passed
+        run: |
+          echo "## ✅ PR Ready to Merge" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "All required checks have passed!" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Checks Completed" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ PR Validation" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Quick Tests" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Size Check" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Dependency Check" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Documentation Check" >> $GITHUB_STEP_SUMMARY

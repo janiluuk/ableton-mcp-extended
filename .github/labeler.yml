@@ -1,0 +1,89 @@
+# Label configuration for auto-labeling PRs based on changed files
+# Using labeler v5 syntax
+
+# Documentation changes
+documentation:
+  - changed-files:
+    - any-glob-to-any-file: '**/*.md'
+  - changed-files:
+    - any-glob-to-any-file: 'docs/**/*'
+
+# Integration modules
+integration:localai:
+  - changed-files:
+    - any-glob-to-any-file: 'localai_mcp/**/*'
+
+integration:comfyui:
+  - changed-files:
+    - any-glob-to-any-file: 'comfyui_mcp/**/*'
+
+integration:uvr5:
+  - changed-files:
+    - any-glob-to-any-file: 'uvr5_mcp/**/*'
+
+integration:rvc:
+  - changed-files:
+    - any-glob-to-any-file: 'rvc_mcp/**/*'
+
+integration:elevenlabs:
+  - changed-files:
+    - any-glob-to-any-file: 'elevenlabs_mcp/**/*'
+
+# Core server
+core:
+  - changed-files:
+    - any-glob-to-any-file: 'MCP_Server/**/*'
+
+# Testing
+testing:
+  - changed-files:
+    - any-glob-to-any-file:
+      - 'tests/**/*'
+      - 'pytest.ini'
+      - 'conftest.py'
+
+# Docker & DevOps
+docker:
+  - changed-files:
+    - any-glob-to-any-file:
+      - 'docker/**/*'
+      - 'docker-compose.yml'
+      - 'Dockerfile'
+      - '.dockerignore'
+
+# CI/CD
+ci-cd:
+  - changed-files:
+    - any-glob-to-any-file: '.github/**/*'
+
+# Dependencies
+dependencies:
+  - changed-files:
+    - any-glob-to-any-file:
+      - 'pyproject.toml'
+      - 'requirements*.txt'
+      - 'setup.py'
+      - 'setup.cfg'
+
+# Examples
+examples:
+  - changed-files:
+    - any-glob-to-any-file: 'examples/**/*'
+
+# Build
+build:
+  - changed-files:
+    - any-glob-to-any-file:
+      - 'Makefile'
+      - '.gitignore'
+      - 'pyproject.toml'
+
+# Configuration
+config:
+  - changed-files:
+    - any-glob-to-any-file:
+      - '.env.example'
+      - '**/*.yml'
+      - '**/*.yaml'
+      - '**/*.json'
+      - '**/*.toml'
